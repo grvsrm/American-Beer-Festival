@@ -1,0 +1,73 @@
+---
+title: "TidyTemplate"
+date: 2020-10-22
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE, cache = TRUE,
+                      warning = FALSE, message = FALSE,
+                      dpi = 180, fig.height = 5, fig.width = 8)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(scales)
+library(glue)
+
+theme_set(theme_light())
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2020-10-20")
+beer_awards <- tt$beer_awards %>% 
+    mutate(state = str_to_upper(state),
+           medal = fct_relevel(medal, c("Bronze", "Silver")))
+
+```
+
+```{r}
+beer_counts <- beer_awards %>% 
+    count(beer_name, brewery, medal, city, state)
+
+
+```
+
+```{r}
+beer_counts %>% 
+    pivot_wider(names_from = medal, values_from = n, values_fill = 0) %>% 
+    mutate(total = Gold + Silver + Bronze) %>% 
+    arrange(desc(total))
+    
+```
+
+```{r}
+beer_counts %>% 
+    mutate(beer_name = glue("{beer_name}({brewery})")) %>% 
+    filter(fct_lump(beer_name, 16, w = n) != "Other") %>% 
+    mutate(beer_name = fct_reorder(beer_name, n, sum)) %>% 
+    ggplot(aes(n, beer_name, fill = medal)) +
+    geom_col()
+
+
+```
+
+```{r}
+by_brewery <- beer_awards %>% 
+    group_by(brewery) %>% 
+    summarise(n_medal = n(),
+              n_beer = n_distinct(beer_name),
+              n_gold = sum(medal == "Gold"),
+              weighted_medal = sum(as.numeric(medal))) %>% 
+    arrange(desc(n_medal))
+```
+
