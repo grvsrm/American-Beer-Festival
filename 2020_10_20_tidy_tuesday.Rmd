@@ -71,3 +71,75 @@ by_brewery <- beer_awards %>%
     arrange(desc(n_medal))
 ```
 
+```{r}
+beer_awards %>% 
+    filter(fct_lump(state, 10) != "Other",
+           fct_lump(category,10) != "Other") %>% 
+    count(state, category)
+```
+
+```{r}
+beer_df <- beer_awards %>% 
+  group_by(beer_name) %>% 
+  add_count(medal) %>% 
+  rename("past_award" = n) %>% 
+  ungroup()
+
+```
+
+Lets create a model for medal prediction
+
+```{r}
+library(tidymodels)
+```
+
+data split
+```{r}
+beer_split <- beer_df %>% 
+  initial_split(strata = medal)
+
+beer_train <- training(beer_split)
+beer_test <- testing(beer_split)
+```
+
+recipe
+```{r}
+beer_recipe <- recipe(medal ~., data = beer_train) %>% 
+  step_other(beer_name,
+             brewery,
+             city,
+             state,
+             category) %>% 
+  step_dummy(all_nominal(), - all_outcomes())
+
+beer_recipe %>% prep()
+```
+
+model spec
+```{r}
+rf_spec <- rand_forest() %>% 
+  set_engine("ranger") %>% 
+  set_mode("classification")
+
+```
+
+workflow
+```{r}
+beer_wf <- workflow() %>% 
+  add_recipe(beer_recipe) %>% 
+  add_model(rf_spec)
+```
+
+model fit
+```{r}
+
+beer_fit <- beer_wf %>% 
+  fit(beer_train)
+
+beer_res <- bind_cols(medal = beer_test$medal,
+                      beer_fit %>%
+                        predict(beer_test))
+beer_res %>% 
+  conf_mat(medal, .pred_class)
+```
+
