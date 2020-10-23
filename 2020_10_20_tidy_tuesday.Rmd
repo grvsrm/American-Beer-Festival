@@ -136,10 +136,16 @@ model fit
 beer_fit <- beer_wf %>% 
   fit(beer_train)
 
+```
+
+```{r}
 beer_res <- bind_cols(medal = beer_test$medal,
                       beer_fit %>%
                         predict(beer_test))
 beer_res %>% 
   conf_mat(medal, .pred_class)
+
+beer_res %>% 
+  accuracy(medal, .pred_class)
 ```
 
